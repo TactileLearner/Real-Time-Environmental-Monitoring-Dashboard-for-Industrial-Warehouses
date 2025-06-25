@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColdChain Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for the body to apply Inter font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Basic styling for canvas to ensure it fits the container */
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        /* Sticky header for log tables */
+        .log-table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f9fafb; /* Light gray background for sticky header */
+            z-index: 10;
+        }
+        /* Common style for main nav buttons (Dashboard, Log) */
+        /* .main-nav-button {
+            @apply px-6 py-3 rounded-xl font-semibold shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
+        } */
+        /* Active main nav button style */
+        /* .main-nav-button.active {
+            @apply bg-indigo-600 text-white shadow-lg focus:ring-indigo-500;
+        } */
+        /* Inactive main nav button style */
+        /* .main-nav-button:not(.active) { */
+            /* Ash gray background, black text */
+            /* @apply bg-gray-300 text-black hover:bg-gray-400 focus:ring-gray-500;
+        } */
+        /* Log view toggle buttons (Daily Averages, Weekly Averages) */
+        /* .log-view-toggle-button {
+            @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+        } */
+        /* .log-view-toggle-button.active-toggle {
+            @apply bg-blue-600 text-white shadow-md;
+        } */
+        /* .log-view-toggle-button:not(.active-toggle) {
+            @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
+        } */
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 sm:p-6 lg:p-8 flex flex-col items-center">
+
+    <nav class="flex items-center w-full max-w-6xl p-3 bg-gray-800 rounded-xl shadow-lg mb-8">
+        <div class="text-white text-2xl font-bold ml-4">
+            ❄️ ColdChain Monitor
+        </div>
+        <div class="flex space-x-4 ml-auto mr-4">
+            <button id="dashboardBtn" class="px-6 py-3 rounded-xl font-semibold shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-gray-300 text-black hover:bg-gray-400 focus:ring-gray-500">
+                Dashboard
+            </button>
+            <button id="logBtn" class="px-6 py-3 rounded-xl font-semibold shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-gray-300 text-black hover:bg-gray-400 focus:ring-gray-500">
+                Log
+            </button>
+        </div>
+    </nav>
+
+    <div id="dashboardPage" class="w-full flex flex-col items-center">
+        <h1 class="text-4xl sm:text-5xl font-bold text-center text-gray-800 mb-8 tracking-tight">
+            📊 Real-Time Monitoring Dashboard
+        </h1>
+
+        <div class="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center mb-6 w-full max-w-sm">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4">Set Temperature Alert Threshold</h3>
+            <div class="flex items-center space-x-2 mb-2">
+                <label for="tempThresholdInput" class="text-gray-600">Threshold (°C):</label>
+                <input type="number" id="tempThresholdInput" value="28" class="border rounded-md px-2 py-1 w-24 text-center text-gray-800">
+            </div>
+            <p class="text-sm text-gray-500">Current Threshold: <span id="currentThresholdDisplay" class="font-bold text-red-500">28.00</span> °C</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl">
+            <div class="flex flex-col items-center bg-white p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 transform hover:-translate-y-1">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="text-red-500 text-3xl mr-2">🌡️</span> Temperature
+                </h2>
+                <div class="bg-blue-50 p-3 rounded-lg shadow-sm mb-4 w-full text-center">
+                    <p class="text-lg font-semibold text-gray-700">Current: <span id="currentTempDisplay" class="text-red-600 text-xl">--</span> °C</p>
+                </div>
+                <div class="w-full h-64">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center bg-white p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 transform hover:-translate-y-1">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="text-blue-500 text-3xl mr-2">💧</span> Humidity
+                </h2>
+                <div class="bg-blue-50 p-3 rounded-lg shadow-sm mb-4 w-full text-center">
+                    <p class="text-lg font-semibold text-gray-700">Current: <span id="currentHumDisplay" class="text-blue-600 text-xl">--</span> %</p>
+                </div>
+                <div class="w-full h-64">
+                    <canvas id="humChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="logPage" class="w-full flex flex-col items-center hidden">
+        <h1 id="logPageTitle" class="text-4xl sm:text-5xl font-bold text-center text-gray-800 mb-8 tracking-tight">
+            📈 Daily Average Temperature & Humidity
+        </h1>
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-3xl">
+            <div class="flex justify-center space-x-4 mb-6">
+                <button id="dailyAvgViewBtn" class="log-view-toggle-button active-toggle">
+                    Daily Averages
+                </button>
+                <button id="weeklyAvgViewBtn" class="log-view-toggle-button">
+                    Weekly Averages
+                </button>
+            </div>
+
+            <div id="dailyAvgTableContainer" class="max-h-96 overflow-y-auto rounded-lg border border-gray-200 log-table">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Temp (°C)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Humidity (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyAvgBody" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+
+            <div id="weeklyAvgTableContainer" class="max-h-96 overflow-y-auto rounded-lg border border-gray-200 log-table hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Week (Year-Week#)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Temp (°C)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Humidity (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weeklyAvgBody" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+
+            <p class="text-sm text-gray-500 mt-4 text-center">Averages calculated from data over the last 7 days.</p>
+        </div>
+    </div>
+
+    <div id="customAlertModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full relative">
+            <h3 id="alertTitle" class="text-xl font-bold text-red-600 mb-4">Temperature Alert!</h3>
+            <p id="alertMessage" class="text-gray-800 mb-6"></p>
+            <div id="llmInsightDisplay" class="bg-gray-100 p-3 rounded-md border border-gray-200 text-sm text-gray-700 my-4 hidden">
+                </div>
+            <button id="getInsightBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 hidden">
+                ✨ Get Anomaly Insight ✨
+            </button>
+            <button id="closeAlertBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ml-2">
+                Close
+            </button>
+            <button onclick="closeCustomAlert()" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Get the 2D rendering context for the canvas elements
+        const tempCtx = document.getElementById('tempChart').getContext('2d');
+        const humCtx = document.getElementById('humChart').getContext('2d');
+
+        // References to page containers and navigation buttons
+        const dashboardPage = document.getElementById('dashboardPage');
+        const logPage = document.getElementById('logPage'); // Unified log page
+        const dashboardBtn = document.getElementById('dashboardBtn');
+        const logBtn = document.getElementById('logBtn');
+        const currentTempDisplay = document.getElementById('currentTempDisplay');
+        const currentHumDisplay = document.getElementById('currentHumDisplay');
+
+        // Temperature Threshold elements
+        const tempThresholdInput = document.getElementById('tempThresholdInput');
+        const currentThresholdDisplay = document.getElementById('currentThresholdDisplay');
+        let temperatureThreshold = parseFloat(tempThresholdInput.value); // Initial threshold from input
+        let alertActive = false; // Flag to prevent repeated alerts for the same exceedance
+
+        // Custom Alert Modal elements
+        const customAlertModal = document.getElementById('customAlertModal');
+        const alertTitle = document.getElementById('alertTitle');
+        const alertMessage = document.getElementById('alertMessage');
+        const llmInsightDisplay = document.getElementById('llmInsightDisplay'); // For LLM response
+        const getInsightBtn = document.getElementById('getInsightBtn'); // Button to trigger LLM
+        const closeAlertBtn = document.getElementById('closeAlertBtn');
+
+        // Log page specific elements
+        const logPageTitle = document.getElementById('logPageTitle');
+        const dailyAvgViewBtn = document.getElementById('dailyAvgViewBtn');
+        const weeklyAvgViewBtn = document.getElementById('weeklyAvgViewBtn');
+        const dailyAvgTableContainer = document.getElementById('dailyAvgTableContainer');
+        const weeklyAvgTableContainer = document.getElementById('weeklyAvgTableContainer');
+        const dailyAvgBody = document.getElementById('dailyAvgBody');
+        const weeklyAvgBody = document.getElementById('weeklyAvgBody');
+
+        // State to track current log view: 'dailyAvg' or 'weeklyAvg'
+        let currentLogView = 'dailyAvg';
+
+        // Array to store historical temperature and humidity log data (raw data)
+        // Each entry will be an object: { timestamp: Date object, temperature: number, humidity: number }
+        const dataLog = [];
+
+        // Initialize the Temperature Chart
+        const tempChart = new Chart(tempCtx, {
+            type: 'line', // Line chart type
+            data: {
+                labels: [], // Stores timestamps
+                datasets: [{
+                    label: 'Temperature (°C)', // Label for the dataset
+                    data: [], // Stores temperature values
+                    borderColor: 'rgba(239, 68, 68, 0.8)', // Red color for the line
+                    backgroundColor: 'rgba(239, 68, 68, 0.2)', // Light red background for the area under the line
+                    fill: true, // Fill the area under the line
+                    tension: 0.3, // Smoothness of the line
+                    pointBackgroundColor: 'rgba(239, 68, 68, 1)', // Red points
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: 'rgba(239, 68, 68, 1)',
+                    pointHoverBorderColor: 'rgba(220,220,220,1)',
+                    pointRadius: 3,
+                    pointHitRadius: 10,
+                }]
+            },
+            options: {
+                responsive: true, // Chart will resize with its container
+                maintainAspectRatio: false, // Allows chart to fill container without fixed aspect ratio
+                animation: {
+                    duration: 500 // Animation duration in milliseconds
+                },
+                plugins: {
+                    legend: {
+                        display: true, // Display the legend
+                        position: 'top', // Position the legend at the top
+                        labels: {
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time',
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true, // Start the Y-axis from zero
+                        title: {
+                            display: true,
+                            text: 'Value',
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Initialize the Humidity Chart
+        const humChart = new Chart(humCtx, {
+            type: 'line', // Line chart type
+            data: {
+                labels: [], // Stores timestamps
+                datasets: [{
+                    label: 'Humidity (%)', // Label for the dataset
+                    data: [], // Stores humidity values
+                    borderColor: 'rgba(59, 130, 246, 0.8)', // Blue color for the line
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)', // Light blue background for the area under the line
+                    fill: true, // Fill the area under the line
+                    tension: 0.3, // Smoothness of the line
+                    pointBackgroundColor: 'rgba(59, 130, 246, 1)', // Blue points
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: 'rgba(59, 130, 246, 1)',
+                    pointHoverBorderColor: 'rgba(220,220,220,1)',
+                    pointRadius: 3,
+                    pointHitRadius: 10,
+                }]
+            },
+            options: {
+                responsive: true, // Chart will resize with its container
+                maintainAspectRatio: false, // Allows chart to fill container without fixed aspect ratio
+                animation: {
+                    duration: 500 // Animation duration in milliseconds
+                },
+                plugins: {
+                    legend: {
+                        display: true, // Display the legend
+                        position: 'top', // Position the legend at the top
+                        labels: {
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time',
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true, // Start the Y-axis from zero
+                        title: {
+                            display: true,
+                            text: 'Value',
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        /**
+         * Calculates daily average temperature and humidity from the dataLog.
+         * @returns {Array} An array of objects, each representing a day's averages.
+         */
+        const calculateDailyAverages = () => {
+            const dailyData = {}; // Stores { 'YYYY-MM-DD': { totalTemp: 0, totalHum: 0, count: 0 } }
+
+            dataLog.forEach(entry => {
+                // Get date in 'YYYY-MM-DD' format to use as a consistent key
+                const dateKey = entry.timestamp.toISOString().slice(0, 10);
+                if (!dailyData[dateKey]) {
+                    dailyData[dateKey] = { totalTemp: 0, totalHum: 0, count: 0 };
+                }
+                dailyData[dateKey].totalTemp += parseFloat(entry.temperature);
+                dailyData[dateKey].totalHum += parseFloat(entry.humidity);
+                dailyData[dateKey].count++;
+            });
+
+            const averages = [];
+            for (const dateKey in dailyData) {
+                const data = dailyData[dateKey];
+                averages.push({
+                    date: dateKey,
+                    avgTemp: (data.totalTemp / data.count).toFixed(2),
+                    avgHum: (data.totalHum / data.count).toFixed(2)
+                });
+            }
+
+            // Sort by date, newest first for display in the log
+            averages.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            return averages;
+        };
+
+        /**
+         * Updates the display of the daily average temperature and humidity log table.
+         * Clears existing entries and appends new rows from the calculated daily averages.
+         */
+        const updateDailyAverageTable = () => {
+            dailyAvgBody.innerHTML = ''; // Clear existing entries
+            const dailyAverages = calculateDailyAverages(); // Recalculate each time it's displayed
+
+            if (dailyAverages.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.setAttribute('colspan', '3');
+                cell.classList.add('px-6', 'py-4', 'text-center', 'text-gray-500');
+                cell.textContent = 'No data available for daily averages.';
+                row.appendChild(cell);
+                dailyAvgBody.appendChild(row);
+                return;
+            }
+
+            dailyAverages.forEach(avg => {
+                const row = document.createElement('tr');
+                row.classList.add('hover:bg-gray-100');
+
+                const dateCell = document.createElement('td');
+                dateCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'font-medium', 'text-gray-900');
+                dateCell.textContent = avg.date; // Display the date string
+
+                const avgTempCell = document.createElement('td');
+                avgTempCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'text-gray-500');
+                avgTempCell.textContent = avg.avgTemp;
+
+                const avgHumCell = document.createElement('td');
+                avgHumCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'text-gray-500');
+                avgHumCell.textContent = avg.avgHum;
+
+                row.appendChild(dateCell);
+                row.appendChild(avgTempCell);
+                row.appendChild(avgHumCell);
+                dailyAvgBody.appendChild(row);
+            });
+        };
+
+        /**
+         * Calculates the ISO week number for a given date.
+         * Source: https://stackoverflow.com/questions/6117814/get-week-of-year-in-javascript-using-gettime
+         * @param {Date} date - The date object.
+         * @returns {string} - The ISO week string (e.g., "2023-W01").
+         */
+        const getISOWeek = (date) => {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+            return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+        };
+
+        /**
+         * Calculates weekly average temperature and humidity from the dataLog.
+         * @returns {Array} An array of objects, each representing a week's averages.
+         */
+        const calculateWeeklyAverages = () => {
+            const weeklyData = {}; // Stores { 'YYYY-W##': { totalTemp: 0, totalHum: 0, count: 0 } }
+
+            dataLog.forEach(entry => {
+                const weekKey = getISOWeek(entry.timestamp);
+                if (!weeklyData[weekKey]) {
+                    weeklyData[weekKey] = { totalTemp: 0, totalHum: 0, count: 0 };
+                }
+                weeklyData[weekKey].totalTemp += parseFloat(entry.temperature);
+                weeklyData[weekKey].totalHum += parseFloat(entry.humidity);
+                weeklyData[weekKey].count++;
+            });
+
+            const averages = [];
+            for (const weekKey in weeklyData) {
+                const data = weeklyData[weekKey];
+                averages.push({
+                    week: weekKey,
+                    avgTemp: (data.totalTemp / data.count).toFixed(2),
+                    avgHum: (data.totalHum / data.count).toFixed(2)
+                });
+            }
+
+            // Sort by week, newest first
+            averages.sort((a, b) => b.week.localeCompare(a.week));
+
+            return averages;
+        };
+
+        /**
+         * Updates the display of the weekly average temperature and humidity log table.
+         * Clears existing entries and appends new rows from the calculated weekly averages.
+         */
+        const updateWeeklyAverageTable = () => {
+            weeklyAvgBody.innerHTML = ''; // Clear existing entries
+            const weeklyAverages = calculateWeeklyAverages(); // Recalculate each time it's displayed
+
+            if (weeklyAverages.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.setAttribute('colspan', '3');
+                cell.classList.add('px-6', 'py-4', 'text-center', 'text-gray-500');
+                cell.textContent = 'No data available for weekly averages.';
+                row.appendChild(cell);
+                weeklyAvgBody.appendChild(row);
+                return;
+            }
+
+            weeklyAverages.forEach(avg => {
+                const row = document.createElement('tr');
+                row.classList.add('hover:bg-gray-100');
+
+                const weekCell = document.createElement('td');
+                weekCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'font-medium', 'text-gray-900');
+                weekCell.textContent = avg.week; // Display the week string
+
+                const avgTempCell = document.createElement('td');
+                avgTempCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'text-gray-500');
+                avgTempCell.textContent = avg.avgTemp;
+
+                const avgHumCell = document.createElement('td');
+                avgHumCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'text-gray-500');
+                avgHumCell.textContent = avg.avgHum;
+
+                row.appendChild(weekCell);
+                row.appendChild(avgTempCell);
+                row.appendChild(avgHumCell);
+                weeklyAvgBody.appendChild(row);
+            });
+        };
+
+        /**
+         * Displays the custom alert modal.
+         * @param {string} title - The title for the alert.
+         * @param {string} message - The message content for the alert.
+         * @param {boolean} showInsightBtn - Whether to show the 'Get Anomaly Insight' button.
+         */
+        const showCustomAlert = (title, message, showInsightBtn = false) => {
+            alertTitle.textContent = title;
+            alertMessage.textContent = message;
+            llmInsightDisplay.classList.add('hidden'); // Hide insight display by default
+            llmInsightDisplay.textContent = ''; // Clear previous insight
+
+            if (showInsightBtn) {
+                getInsightBtn.classList.remove('hidden');
+            } else {
+                getInsightBtn.classList.add('hidden');
+            }
+            customAlertModal.classList.remove('hidden');
+        };
+
+        /**
+         * Hides the custom alert modal.
+         */
+        const closeCustomAlert = () => {
+            customAlertModal.classList.add('hidden');
+            llmInsightDisplay.classList.add('hidden'); // Hide insight display
+            llmInsightDisplay.textContent = ''; // Clear insight
+            getInsightBtn.classList.add('hidden'); // Hide insight button
+        };
+
+        // Event listener for closing the custom alert
+        closeAlertBtn.addEventListener('click', closeCustomAlert);
+
+        /**
+         * Function to call the Gemini API for anomaly insights.
+         * @param {number} currentTemp - The current temperature that triggered the alert.
+         * @param {number} threshold - The temperature threshold.
+         */
+        const getAnomalyInsight = async (currentTemp, threshold) => {
+            llmInsightDisplay.classList.remove('hidden'); // Show insight display area
+            llmInsightDisplay.textContent = 'Generating insight...'; // Show loading message
+
+            const prompt = `The current temperature in a cold storage unit is ${currentTemp}°C, which is above the set threshold of ${threshold}°C. Please provide a brief explanation of why this anomaly might be occurring and suggest a possible immediate action. Keep the response concise, under 100 words.`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // Canvas will automatically provide the API key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    llmInsightDisplay.textContent = text; // Display the LLM response
+                } else {
+                    llmInsightDisplay.textContent = 'Could not retrieve insight. Unexpected API response structure.';
+                    console.error('Unexpected API response structure:', result);
+                }
+            } catch (error) {
+                llmInsightDisplay.textContent = `Error generating insight: ${error.message}. Please try again later.`;
+                console.error('Error calling Gemini API:', error);
+            }
+        };
+
+        // Event listener for the 'Get Anomaly Insight' button
+        getInsightBtn.addEventListener('click', () => {
+            // Pass the current temp and threshold when requesting insight
+            getAnomalyInsight(parseFloat(currentTempDisplay.textContent), temperatureThreshold);
+        });
+
+        /**
+         * Updates the temperature threshold from the input field.
+         */
+        tempThresholdInput.addEventListener('input', () => {
+            const newValue = parseFloat(tempThresholdInput.value);
+            if (!isNaN(newValue)) {
+                temperatureThreshold = newValue;
+                currentThresholdDisplay.textContent = temperatureThreshold.toFixed(2);
+            }
+        });
+
+        /**
+         * Simulates real-time data updates for temperature and humidity.
+         * Generates random data, updates charts, current temperature/humidity displays, and the data log.
+         */
+        const simulateData = () => {
+            const now = new Date(); // Get current Date object
+            const timestampForChart = now.toLocaleTimeString(); // Time string for chart labels
+            const temperature = (Math.random() * 10 + 20).toFixed(2); // Random temperature between 20-30°C
+            const humidity = (Math.random() * 30 + 50).toFixed(2);    // Random humidity between 50-80%
+
+            // Check for temperature alert
+            const currentTemp = parseFloat(temperature);
+            if (currentTemp > temperatureThreshold && !alertActive) {
+                showCustomAlert('Temperature Exceeded!', `Current temperature ${currentTemp}°C is above the threshold of ${temperatureThreshold}°C!`, true); // Pass true to show insight button
+                alertActive = true; // Set flag to true to prevent continuous alerts
+            } else if (currentTemp <= temperatureThreshold && alertActive) {
+                alertActive = false; // Reset flag if temperature drops below threshold
+                closeCustomAlert(); // Optionally close alert if temperature returns to normal
+            }
+
+
+            // Limit the number of data points for the charts to keep them readable
+            const maxChartDataPoints = 20;
+
+            // Update Temperature Chart
+            if (tempChart.data.labels.length >= maxChartDataPoints) {
+                tempChart.data.labels.shift(); // Remove oldest label
+                tempChart.data.datasets[0].data.shift(); // Remove oldest data point
+            }
+            tempChart.data.labels.push(timestampForChart); // Add new timestamp
+            tempChart.data.datasets[0].data.push(temperature); // Add new temperature data
+            tempChart.update(); // Update the chart
+
+            // Update Humidity Chart
+            if (humChart.data.labels.length >= maxChartDataPoints) {
+                humChart.data.labels.shift(); // Remove oldest label
+                humChart.data.datasets[0].data.shift(); // Remove oldest data point
+            }
+            humChart.data.labels.push(timestampForChart); // Add new timestamp
+            humChart.data.datasets[0].data.push(humidity); // Add new humidity data
+            humChart.update(); // Update the chart
+
+            // Update current temperature and humidity displays on the dashboard
+            currentTempDisplay.textContent = temperature;
+            currentHumDisplay.textContent = humidity;
+
+            // Add new reading to the raw data log
+            dataLog.push({ timestamp: now, temperature, humidity });
+
+            // Prune data older than 7 days from the dataLog
+            const sevenDaysAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
+            let i = 0;
+            while (i < dataLog.length) {
+                if (dataLog[i].timestamp.getTime() < sevenDaysAgo) {
+                    dataLog.splice(i, 1); // Remove the element at index i
+                } else {
+                    i++; // Move to the next element only if current one was not removed
+                }
+            }
+
+            // Update log tables only if the log page is visible and the correct view is active
+            if (!logPage.classList.contains('hidden')) {
+                if (currentLogView === 'dailyAvg') {
+                    updateDailyAverageTable();
+                } else { // currentLogView === 'weeklyAvg'
+                    updateWeeklyAverageTable();
+                }
+            }
+        };
+
+        /**
+         * Manages page visibility and navigation button active states.
+         * @param {string} pageId - The ID of the page to show ('dashboardPage' or 'logPage').
+         */
+        const showPage = (pageId) => {
+            // Hide all pages
+            dashboardPage.classList.add('hidden');
+            logPage.classList.add('hidden');
+
+            // Deactivate all main nav buttons by removing active and applying inactive styles
+            dashboardBtn.classList.remove('active');
+            logBtn.classList.remove('active');
+
+            // Show the selected page and activate its button
+            if (pageId === 'dashboardPage') {
+                dashboardPage.classList.remove('hidden');
+                dashboardBtn.classList.add('active');
+            } else if (pageId === 'logPage') {
+                logPage.classList.remove('hidden');
+                logBtn.classList.add('active');
+                // Ensure the correct log view is active and updated when navigating to the log page
+                if (currentLogView === 'dailyAvg') {
+                    showLogView('dailyAvg');
+                } else {
+                    showLogView('weeklyAvg');
+                }
+            }
+        };
+
+        /**
+         * Controls which log table (daily or weekly averages) is visible.
+         * @param {string} viewType - 'dailyAvg' for daily averages, 'weeklyAvg' for weekly averages.
+         */
+        const showLogView = (viewType) => {
+            currentLogView = viewType;
+
+            // Hide both tables initially
+            dailyAvgTableContainer.classList.add('hidden');
+            weeklyAvgTableContainer.classList.add('hidden');
+
+            // Deactivate both toggle buttons
+            dailyAvgViewBtn.classList.remove('active-toggle');
+            weeklyAvgViewBtn.classList.remove('active-toggle');
+
+            if (viewType === 'dailyAvg') {
+                dailyAvgTableContainer.classList.remove('hidden');
+                dailyAvgViewBtn.classList.add('active-toggle');
+                logPageTitle.textContent = '📈 Daily Average Temperature & Humidity';
+                updateDailyAverageTable(); // Update content when switched
+            } else { // viewType === 'weeklyAvg'
+                weeklyAvgTableContainer.classList.remove('hidden');
+                weeklyAvgViewBtn.classList.add('active-toggle');
+                logPageTitle.textContent = '📊 Weekly Average Temperature & Humidity';
+                updateWeeklyAverageTable(); // Update content when switched
+            }
+        };
+
+        // Event listeners for main navigation buttons
+        dashboardBtn.addEventListener('click', () => showPage('dashboardPage'));
+        logBtn.addEventListener('click', () => showPage('logPage'));
+
+        // Event listeners for log view toggle buttons
+        dailyAvgViewBtn.addEventListener('click', () => showLogView('dailyAvg'));
+        weeklyAvgViewBtn.addEventListener('click', () => showLogView('weeklyAvg'));
+
+        // Initial page load: show the dashboard and default log view
+        showPage('dashboardPage');
+        showLogView('dailyAvg'); // Default to daily averages when log page is shown
+
+        // Start data simulation at a regular interval (every 2 seconds)
+        setInterval(simulateData, 2000); // Calls simulateData every 2000 milliseconds (2 seconds)
+    </script>
+</body>
+</html>

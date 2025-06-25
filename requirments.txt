@@ -1,0 +1,5 @@
+
+djangorestframework
+channels
+channels-redis
+mysqlclient
